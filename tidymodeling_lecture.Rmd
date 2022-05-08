@@ -1,0 +1,269 @@
+---
+title: "Einführung ins Tidymodeling"
+author: "Dr. Shirin Elsinghorst"
+date: '2022-05-08'
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(tidymodels)
+```
+
+# Grundlagen
+
+## RStudio & projects
+
+https://support.rstudio.com/hc/en-us/articles/200526207-Using-RStudio-Projects
+
+- File window (.R, .txt, .md, .csv, ...)
+- Environment, History, Connections, (Git), Tutorial
+- Console, Terminal, Jobs
+- Files, Plots, Packages, Help, Viewer
+
+## RMarkdown
+
+https://rmarkdown.rstudio.com/
+
+- Code + text
+- markdown Syntax
+
+## Tidyverse
+
+https://www.tidyverse.org/
+https://www.tidyverse.org/learn/
+
+---
+
+<br>
+
+# Tidymodeling
+
+- Tidymodeling beschreibt das **WIE** des Modellierungsprozesses (preprocessing, training, prediction), **NICHT WELCHES MODELL** zu den Daten und der Fragestellung passt. Dafür siehe 
+
+- Ebook *R for Data Science* von Hadley Wickham & Garret Grolemund: https://r4ds.had.co.nz/index.html
+- Ebook *Statistical Inference via Data Science* von Chester Ismay and Albert Y. Kim: https://moderndive.com/
+
+https://www.tidymodels.org/
+
+> The tidymodels framework is a collection of packages for modeling and machine learning using tidyverse principles.
+
+- Ebook *Tidy Modeling with R* von Max Kuhn & Julia Silge: https://www.tmwr.org/
+
+## magrittr pipe (`%>%`)
+
+> With dplyr and other tidyverse packages, the pipe works well because all of the functions take the data as the first argument.
+
+> The modeling code uses the pipe to pass around the model object.
+
+![](https://rviews.rstudio.com/post/2019-06-14-a-gentle-intro-to-tidymodels_files/figure-html/ds.png)
+
+## Code-along
+
+=> https://www.tidymodels.org/start/models/
+
+```{r}
+# Helper packages
+library(readr)       # for importing data
+library(broom.mixed) # for converting bayesian models to tidy tibbles
+library(dotwhisker)  # for visualizing regression results
+```
+
+
+### Daten einlesen & EDA
+
+```{r}
+urchins <-
+  # Data were assembled for a tutorial 
+  # at https://www.flutterbys.com.au/stats/tut/tut7.5a.html
+  read_csv("https://tidymodels.org/start/models/urchins.csv") %>% 
+  # Change the names to be a little more verbose
+  setNames(c("food_regime", "initial_volume", "width")) %>% 
+  # Factors are very helpful for modeling, so we convert one column
+  mutate(food_regime = factor(food_regime, levels = c("Initial", "Low", "High")))
+#> Rows: 72 Columns: 3
+#> ── Column specification ──────────────────────────────────────────────
+#> Delimiter: ","
+#> chr (1): TREAT
+#> dbl (2): IV, SUTW
+#> 
+#> ℹ Use `spec()` to retrieve the full column specification for this data.
+#> ℹ Specify the column types or set `show_col_types = FALSE` to quiet this message.
+```
+
+```{r}
+urchins
+```
+
+```{r}
+ggplot(urchins,
+       aes(x = initial_volume, 
+           y = width, 
+           group = food_regime, 
+           col = food_regime)) + 
+  geom_point() + 
+  geom_smooth(method = lm, se = FALSE) +
+  scale_color_viridis_d(option = "plasma", end = .7)
+#> `geom_smooth()` using formula 'y ~ x'
+```
+
+### Modellierung
+
+- target/response variable: *width* (numerical)
+- features/predictors:
+
+1. *food_regime* (categorical)
+2. *initial_volumen* (continuous)
+
+=> Two-way ANOVA
+
+```{r}
+width ~ initial_volume * food_regime
+```
+
+#### Specifying the functional form
+
+=> linear regression with least-squares approach
+
+```{r}
+linear_reg()
+```
+
+#### Model training/fitting
+
+- engine: Liste => `?linear_reg`
+
+```{r}
+# change from default `lm` to `keras`
+linear_reg() %>% 
+  set_engine("keras")
+```
+
+- fit: `fit()`
+
+```{r}
+lm_mod <- linear_reg()
+lm_fit <- lm_mod %>% 
+  fit(width ~ initial_volume * food_regime, data = urchins)
+```
+
+```{r}
+lm_fit
+```
+
+```{r}
+tidy(lm_fit)
+```
+
+```{r}
+tidy(lm_fit) %>% 
+  dwplot(dot_args = list(size = 2, color = "black"),
+         whisker_args = list(color = "black"),
+         vline = geom_vline(xintercept = 0, colour = "grey50", linetype = 2))
+```
+
+### Vorhersage (prediction)
+
+```{r}
+new_points <- expand.grid(initial_volume = 20, 
+                          food_regime = c("Initial", "Low", "High"))
+new_points
+```
+
+- Vorhersage mit confidence intervals (Variabilität)
+
+> With tidymodels, the types of predicted values are standardized so that we can use the same syntax to get these values.
+
+```{r}
+mean_pred <- predict(lm_fit, new_data = new_points)
+mean_pred
+```
+
+```{r}
+conf_int_pred <- predict(lm_fit, 
+                         new_data = new_points, 
+                         type = "conf_int")
+conf_int_pred
+```
+
+```{r}
+# Now combine: 
+plot_data <- 
+  new_points %>% 
+  bind_cols(mean_pred) %>% 
+  bind_cols(conf_int_pred)
+```
+
+```{r}
+# and plot:
+ggplot(plot_data, aes(x = food_regime)) + 
+  geom_point(aes(y = .pred)) + 
+  geom_errorbar(aes(ymin = .pred_lower, 
+                    ymax = .pred_upper),
+                width = .2) + 
+  labs(y = "urchin size")
+```
+
+### Bayesian Analysis
+
+- prior distribution
+
+```{r}
+library(nloptr) # on MAC first: brew install nlopt & brew install cmake
+# set the prior distribution
+prior_dist <- rstanarm::student_t(df = 1)
+```
+
+- Definierung des Modells
+
+```{r}
+set.seed(123)
+
+# make the parsnip model
+bayes_mod <-   
+  linear_reg() %>% 
+  set_engine("stan", 
+             prior_intercept = prior_dist, 
+             prior = prior_dist)
+```
+
+- Training
+
+```{r}
+# train the model
+bayes_fit <- 
+  bayes_mod %>% 
+  fit(width ~ initial_volume * food_regime, data = urchins)
+
+print(bayes_fit, digits = 5)
+```
+
+```{r}
+tidy(bayes_fit, conf.int = TRUE)
+```
+
+```{r}
+bayes_plot_data <- 
+  new_points %>% 
+  bind_cols(predict(bayes_fit, new_data = new_points)) %>% 
+  bind_cols(predict(bayes_fit, new_data = new_points, type = "conf_int"))
+
+ggplot(bayes_plot_data, aes(x = food_regime)) + 
+  geom_point(aes(y = .pred)) + 
+  geom_errorbar(aes(ymin = .pred_lower, ymax = .pred_upper), width = .2) + 
+  labs(y = "urchin size") + 
+  ggtitle("Bayesian model with t(1) prior distribution")
+```
+
+---
+
+<br>
+
+```{r}
+session_info()
+```
+
