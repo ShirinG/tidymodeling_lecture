@@ -37,44 +37,17 @@ https://rmarkdown.rstudio.com/
 https://www.tidyverse.org/
 https://www.tidyverse.org/learn/
 
----
+https://r4ds.had.co.nz/
 
-<br>
+![](https://d33wubrfki0l68.cloudfront.net/e3f9e555d0035731c04642ceb58a03fb84b98a7d/4f070/diagrams/data-science-wrangle.png)
 
-# Tidymodeling
-
-- Tidymodeling beschreibt das **WIE** des Modellierungsprozesses (preprocessing, training, prediction), **NICHT WELCHES MODELL** zu den Daten und der Fragestellung passt. Dafür siehe 
-
-- Ebook *R for Data Science* von Hadley Wickham & Garret Grolemund: https://r4ds.had.co.nz/index.html
-- Ebook *Statistical Inference via Data Science* von Chester Ismay and Albert Y. Kim: https://moderndive.com/
-
-https://www.tidymodels.org/
-
-> The tidymodels framework is a collection of packages for modeling and machine learning using tidyverse principles.
-
-- Ebook *Tidy Modeling with R* von Max Kuhn & Julia Silge: https://www.tmwr.org/
-
-## magrittr pipe (`%>%`)
-
-> With dplyr and other tidyverse packages, the pipe works well because all of the functions take the data as the first argument.
-
-> The modeling code uses the pipe to pass around the model object.
-
-![](https://rviews.rstudio.com/post/2019-06-14-a-gentle-intro-to-tidymodels_files/figure-html/ds.png)
-
-## Code-along
+### Tibble vs Dataframe
 
 => https://www.tidymodels.org/start/models/
 
 ```{r}
-# Helper packages
 library(readr)       # for importing data
-library(broom.mixed) # for converting bayesian models to tidy tibbles
-library(dotwhisker)  # for visualizing regression results
 ```
-
-
-### Daten einlesen & EDA
 
 ```{r}
 urchins <-
@@ -100,6 +73,104 @@ urchins
 ```
 
 ```{r}
+str(urchins)
+```
+
+```{r}
+str(as.data.frame(urchins))
+```
+
+```{r}
+str(as.matrix(urchins))
+```
+
+```{r}
+as_tibble(urchins)
+```
+
+> If you’re already familiar with data.frame(), note that tibble() does much less: it never changes the type of the inputs (e.g. it never converts strings to factors!), it never changes the names of variables, and it never creates row names.
+It’s possible for a tibble to have column names that are not valid R variable names, aka non-syntactic names. For example, they might not start with a letter, or they might contain unusual characters like a space. To refer to these variables, you need to surround them with backticks.
+Tibbles have a refined print method that shows only the first 10 rows, and all the columns that fit on screen. This makes it much easier to work with large data. In addition to its name, each column reports its type, a nice feature borrowed from str().
+Compared to a data.frame, tibbles are more strict: they never do partial matching, and they will generate a warning if the column you are trying to access does not exist.
+
+https://r4ds.had.co.nz/tibbles.html
+
+### Das Tidy-Format
+
+> “Tidy datasets are all alike, but every messy dataset is messy in its own way.” –– Hadley Wickham
+
+> There are three interrelated rules which make a dataset tidy:
+Each variable must have its own column.
+Each observation must have its own row.
+Each value must have its own cell.
+
+> Put each dataset in a tibble.
+Put each variable in a column.
+
+> Why ensure that your data is tidy? There are two main advantages:
+There’s a general advantage to picking one consistent way of storing data. If you have a consistent data structure, it’s easier to learn the tools that work with it because they have an underlying uniformity.
+There’s a specific advantage to placing variables in columns because it allows R’s vectorised nature to shine. As you learned in mutate and summary functions, most built-in R functions work with vectors of values. That makes transforming tidy data feel particularly natural.
+
+https://r4ds.had.co.nz/tidy-data.html
+
+### magrittr pipe (`%>%`)
+
+> The pipe, %>%, comes from the magrittr package by Stefan Milton Bache. Packages in the tidyverse load %>% for you automatically, so you don’t usually load magrittr explicitly. 
+
+> The point of the pipe is to help you write code in a way that is easier to read and understand. 
+
+> The pipe works by performing a “lexical transformation”: behind the scenes, magrittr reassembles the code in the pipe to a form that works by overwriting an intermediate object.
+
+https://r4ds.had.co.nz/pipes.html
+
+```{r}
+urchins %>%
+  glimpse()
+```
+
+---
+
+<br>
+
+# Tidymodeling
+
+![](https://rviews.rstudio.com/post/2019-06-14-a-gentle-intro-to-tidymodels_files/figure-html/tidymodels.png)
+
+- Tidymodeling beschreibt das **WIE** des Modellierungsprozesses (preprocessing, training, prediction), **NICHT WELCHES MODELL** zu den Daten und der Fragestellung passt. Dafür siehe 
+
+- Ebook *R for Data Science* von Hadley Wickham & Garret Grolemund: https://r4ds.had.co.nz/index.html
+- Ebook *Statistical Inference via Data Science* von Chester Ismay and Albert Y. Kim: https://moderndive.com/
+
+https://www.tidymodels.org/
+
+> The tidymodels framework is a collection of packages for modeling and machine learning using tidyverse principles.
+
+- Ebook *Tidy Modeling with R* von Max Kuhn & Julia Silge: https://www.tmwr.org/
+
+## magrittr pipe (`%>%`)
+
+> With dplyr and other tidyverse packages, the pipe works well because all of the functions take the data as the first argument.
+
+> The modeling code uses the pipe to pass around the model object.
+
+![](https://rviews.rstudio.com/post/2019-06-14-a-gentle-intro-to-tidymodels_files/figure-html/ds.png)
+
+## Code-along
+
+=> https://www.tidymodels.org/start/models/
+
+```{r}
+library(broom.mixed) # for converting bayesian models to tidy tibbles
+library(dotwhisker)  # for visualizing regression results
+```
+
+### EDA
+
+```{r}
+urchins
+```
+
+```{r}
 ggplot(urchins,
        aes(x = initial_volume, 
            y = width, 
@@ -109,6 +180,64 @@ ggplot(urchins,
   geom_smooth(method = lm, se = FALSE) +
   scale_color_viridis_d(option = "plasma", end = .7)
 #> `geom_smooth()` using formula 'y ~ x'
+```
+
+### Preprocessing
+
+- Training and test data
+
+```{}
+?initial_split
+```
+
+```{r}
+data_split <- initial_split(urchins, prop = 0.75, strata = food_regime)
+data_split
+```
+
+```{r}
+data_split %>%
+  training() %>%
+  glimpse()
+```
+
+```{r}
+data_split %>%
+  testing() %>%
+  glimpse()
+```
+
+### Preprocessing
+
+```{}
+?recipe
+?prep_
+```
+
+```{r}
+data_recipe <- data_split %>%
+  training() %>%
+  recipe(food_regime ~.) %>%
+  step_corr(all_predictors()) %>%
+  step_center(all_predictors(), -all_outcomes()) %>%
+  step_scale(all_predictors(), -all_outcomes()) %>%
+  prep()
+data_recipe
+```
+
+```{r}
+data_testing <- data_recipe %>%
+  bake(testing(data_split)) 
+
+glimpse(data_testing)
+```
+
+Performing the same operation over the training data is redundant, because that data has already been prepped. To load the prepared training data into a variable, we use juice().
+
+```{r}
+data_training <- juice(data_recipe)
+
+glimpse(data_training)
 ```
 
 ### Modellierung
@@ -208,62 +337,11 @@ ggplot(plot_data, aes(x = food_regime)) +
   labs(y = "urchin size")
 ```
 
-### Bayesian Analysis
-
-- prior distribution
-
-```{r}
-library(nloptr) # on MAC first: brew install nlopt & brew install cmake
-# set the prior distribution
-prior_dist <- rstanarm::student_t(df = 1)
-```
-
-- Definierung des Modells
-
-```{r}
-set.seed(123)
-
-# make the parsnip model
-bayes_mod <-   
-  linear_reg() %>% 
-  set_engine("stan", 
-             prior_intercept = prior_dist, 
-             prior = prior_dist)
-```
-
-- Training
-
-```{r}
-# train the model
-bayes_fit <- 
-  bayes_mod %>% 
-  fit(width ~ initial_volume * food_regime, data = urchins)
-
-print(bayes_fit, digits = 5)
-```
-
-```{r}
-tidy(bayes_fit, conf.int = TRUE)
-```
-
-```{r}
-bayes_plot_data <- 
-  new_points %>% 
-  bind_cols(predict(bayes_fit, new_data = new_points)) %>% 
-  bind_cols(predict(bayes_fit, new_data = new_points, type = "conf_int"))
-
-ggplot(bayes_plot_data, aes(x = food_regime)) + 
-  geom_point(aes(y = .pred)) + 
-  geom_errorbar(aes(ymin = .pred_lower, ymax = .pred_upper), width = .2) + 
-  labs(y = "urchin size") + 
-  ggtitle("Bayesian model with t(1) prior distribution")
-```
-
 ---
 
 <br>
 
 ```{r}
-session_info()
+devtools::session_info()
 ```
 
