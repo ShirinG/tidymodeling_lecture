@@ -242,6 +242,10 @@ glimpse(data_training)
 
 ### Modellierung
 
+> In R, there are multiple packages that fit the same type of model. It is common for each package to provide a unique interface. In other words, things such as an argument for the same model attribute is defined differently for each package. For example, the ranger and randomForest packages fit Random Forest models. In the ranger() function, to define the number of trees we use num.trees. In randomForest, that argument is named ntree. It is not easy to switch between packages to run the same model.
+
+> Instead of replacing the modeling package, tidymodels replaces the interface. Better said, tidymodels provides a single set of functions and arguments to define a model. It then fits the model against the requested modeling package.
+
 - target/response variable: *width* (numerical)
 - features/predictors:
 
@@ -295,6 +299,15 @@ tidy(lm_fit) %>%
          vline = geom_vline(xintercept = 0, colour = "grey50", linetype = 2))
 ```
 
+> In the example below, the rand_forest() function is used to initialize a Random Forest model. To define the number of trees, the trees argument is used. To use the ranger version of Random Forest, the set_engine() function is used. Finally, to execute the model, the fit() function is used. The expected arguments are the formula and data. Notice that the model runs on top of the juiced trained data.
+
+```{r}
+urchins_rf <- rand_forest(trees = 100, mode = "classification") %>%
+  #set_engine("ranger") %>%
+  set_engine("randomForest") %>%
+  fit(food_regime ~ ., data = data_training)
+```
+
 ### Vorhersage (prediction)
 
 ```{r}
@@ -335,6 +348,59 @@ ggplot(plot_data, aes(x = food_regime)) +
                     ymax = .pred_upper),
                 width = .2) + 
   labs(y = "urchin size")
+```
+
+- Random Forest example
+
+```{r}
+#predict(urchins_rf, data_testing)
+
+urchins_rf %>%
+  #predict(data_testing) %>%
+  predict(data_testing, type = "prob") %>%
+  bind_cols(data_testing) %>%
+  glimpse()
+```
+
+```{r}
+urchins_probs <- urchins_rf %>%
+  predict(data_testing, type = "prob") %>%
+  bind_cols(data_testing)
+
+urchins_probs %>%
+  gain_curve(food_regime, .pred_Initial:.pred_High) %>%
+  glimpse()
+```
+
+### Model Validierung
+
+> Use the metrics() function to measure the performance of the model. It will automatically choose metrics appropriate for a given type of model. The function expects a tibble that contains the actual results (truth) and what the model predicted (estimate).
+
+```{r}
+urchins_rf %>%
+  predict(data_testing) %>%
+  bind_cols(data_testing) %>%
+  metrics(truth = food_regime, estimate = .pred_class)
+```
+
+```{r}
+urchins_probs %>%
+  gain_curve(food_regime, .pred_Initial:.pred_High) %>%
+  autoplot()
+```
+
+```{r}
+urchins_probs %>%
+  roc_curve(food_regime, .pred_Initial:.pred_High) %>%
+  autoplot()
+```
+
+```{r}
+predict(urchins_rf, data_testing, type = "prob") %>%
+  bind_cols(predict(urchins_rf, data_testing)) %>%
+  bind_cols(select(data_testing, food_regime)) %>%
+  #glimpse()
+  metrics(food_regime, .pred_Initial:.pred_High, estimate = .pred_class)
 ```
 
 ---
