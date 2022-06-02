@@ -1,1 +1,4 @@
 # tidymodeling_lecture
+
+reticulate
+
