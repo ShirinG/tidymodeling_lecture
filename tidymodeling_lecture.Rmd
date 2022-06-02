@@ -211,13 +211,13 @@ data_split %>%
 
 ```{}
 ?recipe
-?prep_
+?step_
 ```
 
 ```{r}
 data_recipe <- data_split %>%
   training() %>%
-  recipe(food_regime ~.) %>%
+  recipe(food_regime ~ .) %>%
   step_corr(all_predictors()) %>%
   step_center(all_predictors(), -all_outcomes()) %>%
   step_scale(all_predictors(), -all_outcomes()) %>%
